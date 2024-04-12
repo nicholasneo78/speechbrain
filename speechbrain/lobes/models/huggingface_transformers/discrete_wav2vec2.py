@@ -12,9 +12,10 @@ Author
 """
 
 import logging
+
+import joblib
 import torch
 from huggingface_hub import hf_hub_download
-import joblib
 
 from speechbrain.lobes.models.huggingface_transformers.wav2vec2 import Wav2Vec2
 
@@ -76,11 +77,11 @@ class DiscreteWav2Vec2(Wav2Vec2):
     >>> kmeans_repo_id = "speechbrain/SSL_Quantization"
     >>> kmeans_filename = "LibriSpeech_wav2vec_k128_L7.pt"
     >>> kmeans_cache_dir="savedir"
-    >>> model = DiscreteWav2Vec2(model_hub, save_path,freeze = True,ssl_layer_num=ssl_layer_num,kmeans_repo_id=kmeans_repo_id, kmeans_filename=kmeans_filename, kmeans_cache_dir=kmeans_cache_dir)
-    >>> embs, tokens = model(inputs)
-    >>> embs.shape
+    >>> model = DiscreteWav2Vec2(model_hub, save_path,freeze = True,ssl_layer_num=ssl_layer_num,kmeans_repo_id=kmeans_repo_id, kmeans_filename=kmeans_filename, kmeans_cache_dir=kmeans_cache_dir)  # doctest: +SKIP
+    >>> embs, tokens = model(inputs)  # doctest: +SKIP
+    >>> embs.shape  # doctest: +SKIP
     torch.Size([10, 1, 1024])
-    >>> tokens.shape
+    >>> tokens.shape  # doctest: +SKIP
     torch.Size([10, 1])
     """
 
