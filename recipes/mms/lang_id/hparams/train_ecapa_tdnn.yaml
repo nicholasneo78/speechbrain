@@ -8,25 +8,29 @@
 # #################################
 
 # Seed needs to be set at top of yaml, before objects with parameters are made
-seed: 1987
+seed: 778
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 
-# Set up folders for reading from and writing to
-# Dataset will be downloaded to the `data_folder`
-data_folder: /datasets/CommonLanguage/common_voice_kpd # !PLACEHOLDER # e.g. /localscratch/common_voice_kpd/
-output_folder: !ref /datasets/CommonLanguage/results/ECAPA-TDNN/<seed>
+data_folder: /datasets/mms/transcribed_lid
+output_folder: !ref /models/lang-id-ecapa-mms-finetuned/<seed>
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
-train_csv: !ref <save_folder>/train.csv
-dev_csv: !ref <save_folder>/dev.csv
-test_csv: !ref <save_folder>/test.csv
-skip_prep: False
 
-# Data for augmentation
+# Path where data manifest files will be stored
+# The data manifest files are created by the data preparation script.
+train_annotation: !ref <data_folder>/train_manifest_sb.json
+valid_annotation: !ref <data_folder>/dev_manifest_sb.json
+test_annotation: !ref <data_folder>/test_manifest_sb.json
+
+# Data for augmentation (if the folder set to the generic ones where the data and csv exists, will not redownload the data again)
 NOISE_DATASET_URL: https://www.dropbox.com/scl/fi/a09pj97s5ifan81dqhi4n/noises.zip?rlkey=j8b0n9kdjdr32o1f06t0cw5b7&dl=1
 RIR_DATASET_URL: https://www.dropbox.com/scl/fi/linhy77c36mu10965a836/RIRs.zip?rlkey=pg9cu8vrpn2u173vhiqyu743u&dl=1
-data_folder_noise: /datasets/CommonLanguage/augmentation/noise # !ref <data_folder>/noise # The noisy sequences for data augmentation will automatically be downloaded here.
-data_folder_rir: /datasets/CommonLanguage/augmentation/rir # !ref <data_folder>/rir # The impulse responses used for data augmentation will automatically be downloaded here.
+
+# The noisy sequences for data augmentation will automatically be downloaded here.
+data_folder_noise: /datasets/augmentation/noise
+# The impulse responses used for data augmentation will automatically be downloaded here.
+data_folder_rir: /datasets/augmentation/rir  
+
 noise_annotation: !ref <data_folder_noise>/noise.csv
 rir_annotation: !ref <data_folder_rir>/rir.csv
 
@@ -41,12 +45,12 @@ error_stats: !name:speechbrain.utils.metric_stats.MetricStats
 ####################### Training Parameters ####################################
 
 # Feature parameters btw: 40 - 80
-n_mels: 80
+n_mels: 60 # 80
 sample_rate: 16000
 number_of_epochs: 30
 batch_size: 4
-n_languages: 45
-emb_dim: 192 # dimensionality of the embeddings
+n_languages: 3
+emb_dim: 256 # 192 # dimensionality of the embeddings
 emb_channels: [1024, 1024, 1024, 1024, 3072]
 emb_attention_channels: 128
 
@@ -97,8 +101,10 @@ add_noise: !new:speechbrain.augment.time_domain.AddNoise
     num_workers: !ref <num_workers>
 
 # Speed perturbation
+speed_changes: [95, 100, 105]  # List of speed changes for time-stretching
 speed_perturb: !new:speechbrain.augment.time_domain.SpeedPerturb
     orig_freq: !ref <sample_rate>
+    speeds: !ref <speed_changes>
 
 # Augmenter: Combines previously defined augmentations to perform data augmentation
 wav_augment: !new:speechbrain.augment.augmenter.Augmenter
@@ -108,7 +114,7 @@ wav_augment: !new:speechbrain.augment.augmenter.Augmenter
     max_augmentations: 2
     augmentations: [
         !ref <add_reverb>,
-        !ref <add_noise>
+        !ref <add_noise>,
     ]
         # !ref <speed_perturb>] # remove perturb to ensure the length of the audio does not exceed and caused OOM
 
@@ -163,15 +169,15 @@ compute_cost: !new:speechbrain.nnet.losses.LogSoftmaxWrapper
         scale: 30
 
 # Learning rates
-lr: 0.0001
-lr_final: 0.00001
+lr: 0.00005 # 0.0001
+lr_final: 0.000005 # 0.00001
 
 
 # This optimizer will be constructed by the Brain class after all parameters
 # are moved to the correct device. Then it will be added to the checkpointer.
 opt_class: !name:torch.optim.Adam
     lr: !ref <lr>
-    weight_decay: 0.000002
+    weight_decay: 0.000001 # 0.000002
 
 
 # Linear lr decay
@@ -196,7 +202,7 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
 # Load pretrained embedding module
 # Note: in this case, we pre-train with the ECAPA-TDNN model trained on voxceleb
 # for speaker-id (this leads to a performance improvement).
-embedding_model_path: /models/spkrec-ecapa-voxceleb/embedding_model.ckpt # speechbrain/spkrec-ecapa-voxceleb/embedding_model.ckpt
+embedding_model_path: /models/lang-id-voxlingua107-ecapa/embedding_model.ckpt 
 
 # Pretrained ECAPA embeddings from SpeakerID on VoxCeleb
 pretrainer: !new:speechbrain.utils.parameter_transfer.Pretrainer
