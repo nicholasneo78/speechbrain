@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  local:
+    build:
+      context: ../
+      dockerfile: build/dockerfile
+    stdin_open: true
+    tty: true
+    image: speechbrain:v0.0.1
+    # ports:
+    #   - 8888:8888
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - /mnt/d/code/speechbrain/:/speechbrain
+      - /mnt/d/datasets/:/datasets
+      - /mnt/d/models/:/models
+    ulimits:
+      memlock: -1
+      stack: 67108864
+    shm_size: 32gb
