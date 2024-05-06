@@ -14,6 +14,7 @@ import argparse
 import inspect
 import logging
 import os
+import json
 import pathlib
 import shutil
 import sys
@@ -1195,12 +1196,12 @@ class Brain:
                     dtype=amp.dtype, device_type=torch.device(self.device).type
                 ):
                     outputs = self.compute_forward(batch, sb.Stage.TRAIN)
-                    loss = self.compute_objectives(
+                    loss, cartography_dict = self.compute_objectives(
                         outputs, batch, sb.Stage.TRAIN
                     )
             else:
                 outputs = self.compute_forward(batch, sb.Stage.TRAIN)
-                loss = self.compute_objectives(outputs, batch, sb.Stage.TRAIN)
+                loss, cartography_dict = self.compute_objectives(outputs, batch, sb.Stage.TRAIN)
 
             scaled_loss = self.scaler.scale(
                 loss / self.grad_accumulation_factor
@@ -1212,7 +1213,7 @@ class Brain:
             self.optimizers_step()
 
         self.on_fit_batch_end(batch, outputs, loss, should_step)
-        return loss.detach().cpu()
+        return loss.detach().cpu(), cartography_dict
 
     def check_loss_isfinite(self, loss):
         """Check if the loss is finite.
@@ -1373,7 +1374,10 @@ class Brain:
             loss = self.compute_objectives(out, batch, stage=stage)
         return loss.detach().cpu()
 
-    def _fit_train(self, train_set, epoch, enable):
+    def _fit_train(self, label_encoder, cartography_folder, train_set, epoch, enable):
+        
+        os.makedirs(cartography_folder, exist_ok=True)
+        
         # Training stage
         self.on_stage_start(Stage.TRAIN, epoch)
         self.modules.train()
@@ -1386,6 +1390,20 @@ class Brain:
             self.train_sampler, "set_epoch"
         ):
             self.train_sampler.set_epoch(epoch)
+
+        final_cartography_dict = {
+            'filename': [],
+            'confidence': [],
+            'prediction_id': [],
+            'reference_id': [],
+        }
+
+        final_cartography_dict_augmented = {
+            'filename': [],
+            'confidence': [],
+            'prediction_id': [],
+            'reference_id': [],
+        }
 
         # Time since last intra-epoch checkpoint
         last_ckpt_time = time.time()
@@ -1405,11 +1423,35 @@ class Brain:
                     break
                 self.step += 1
                 steps_since_ckpt += 1
-                loss = self.fit_batch(batch)
+                loss, cartography_dict = self.fit_batch(batch)
                 self.avg_train_loss = self.update_average(
                     loss, self.avg_train_loss
                 )
                 t.set_postfix(train_loss=self.avg_train_loss)
+
+                # for cartography
+                batch_len = cartography_dict['batch_len']
+                if cartography_dict['augment_flag']:
+                    filename_list, filename_list_aug = cartography_dict['filename'][:batch_len//2] , cartography_dict['filename'][batch_len//2:]
+                    confidence_list, confidence_list_aug = cartography_dict['confidence'][:batch_len//2] , cartography_dict['confidence'][batch_len//2:]
+                    prediction_id_list, prediction_id_list_aug = cartography_dict['prediction_id'][:batch_len//2] , cartography_dict['prediction_id'][batch_len//2:]
+                    reference_id_list, reference_id_list_aug = cartography_dict['reference_id'][:batch_len//2] , cartography_dict['reference_id'][batch_len//2:]
+
+                    final_cartography_dict_augmented['filename'].extend(filename_list_aug)
+                    final_cartography_dict_augmented['confidence'].extend(confidence_list_aug)
+                    final_cartography_dict_augmented['prediction_id'].extend(prediction_id_list_aug)
+                    final_cartography_dict_augmented['reference_id'].extend(reference_id_list_aug)
+
+                else:
+                    filename_list = cartography_dict['filename']
+                    confidence_list = cartography_dict['confidence']
+                    prediction_id_list = cartography_dict['prediction_id']
+                    reference_id_list = cartography_dict['reference_id']
+
+                final_cartography_dict['filename'].extend(filename_list)
+                final_cartography_dict['confidence'].extend(confidence_list)
+                final_cartography_dict['prediction_id'].extend(prediction_id_list)
+                final_cartography_dict['reference_id'].extend(reference_id_list)
 
                 if self.profiler is not None:
                     self.profiler.step()
@@ -1431,6 +1473,56 @@ class Brain:
                     self._save_intra_epoch_ckpt()
                     last_ckpt_time = time.time()
                     steps_since_ckpt = 0
+        
+        # aug list is not empty
+        if final_cartography_dict_augmented['filename']:
+            items_aug = []
+            for file, ref, pred, conf in zip(
+                final_cartography_dict_augmented['filename'],
+                final_cartography_dict_augmented['reference_id'],
+                final_cartography_dict_augmented['prediction_id'],final_cartography_dict_augmented['confidence']
+            ):
+                
+                temp = {
+                    'audio_filepath': file,
+                    'language': label_encoder.decode_torch(ref)[0],
+                    'pred_language': label_encoder.decode_torch(pred)[0],
+                    'confidence': conf
+                }
+
+                items_aug.append(temp)
+            
+            items_aug = sorted(items_aug, key=lambda d: d['audio_filepath'])
+
+        items = []
+
+        for file, ref, pred, conf in zip(
+            final_cartography_dict['filename'],
+            final_cartography_dict['reference_id'],
+            final_cartography_dict['prediction_id'],
+            final_cartography_dict['confidence']
+        ):
+            
+            temp = {
+                'audio_filepath': file,
+                'language': label_encoder.decode_torch(ref)[0],
+                'pred_language': label_encoder.decode_torch(pred)[0],
+                'confidence': conf,
+            }
+
+            items.append(temp)
+
+        items = sorted(items, key=lambda d: d['audio_filepath'])
+
+        with open(os.path.join(cartography_folder, f'epoch_{epoch}.json'), 'w+', encoding='utf-8') as fw:
+            for item in items:
+                fw.write(json.dumps(item) + '\n')
+
+        if final_cartography_dict_augmented['filename']:
+            with open(os.path.join(cartography_folder, f'aug_epoch_{epoch}.json'), 'w+', encoding='utf-8') as fw:
+                for item in items_aug:
+                    fw.write(json.dumps(item) + '\n')
+        
 
         # Run train "on_stage_end" on all processes
         self.zero_grad(set_to_none=True)  # flush gradients
@@ -1495,6 +1587,8 @@ class Brain:
 
     def fit(
         self,
+        label_encoder,
+        cartography_folder,
         epoch_counter,
         train_set,
         valid_set=None,
@@ -1580,7 +1674,13 @@ class Brain:
 
         # Iterate epochs
         for epoch in epoch_counter:
-            self._fit_train(train_set=train_set, epoch=epoch, enable=enable)
+            self._fit_train(
+                label_encoder=label_encoder,
+                cartography_folder=cartography_folder,
+                train_set=train_set, 
+                epoch=epoch, 
+                enable=enable
+            )
             self._fit_valid(valid_set=valid_set, epoch=epoch, enable=enable)
 
             # Debug mode only runs a few epochs

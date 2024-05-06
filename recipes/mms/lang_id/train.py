@@ -15,6 +15,7 @@ Author
 import os
 import sys
 import logging
+import torch
 import torchaudio
 import speechbrain as sb
 from hyperpyyaml import load_hyperpyyaml
@@ -101,6 +102,8 @@ class LID(sb.Brain):
 
         targets = batch.language_encoded.data
 
+        cartography_dict = {}
+
         # Concatenate labels (due to data augmentation)
         if stage == sb.Stage.TRAIN:
             if hasattr(self.hparams, "wav_augment"):
@@ -108,13 +111,46 @@ class LID(sb.Brain):
                 if hasattr(self.hparams.lr_annealing, "on_batch_end"):
                     self.hparams.lr_annealing.on_batch_end(self.optimizer)
 
-        loss = self.hparams.compute_cost(predictions, targets)
+            # additional retrieval of information for data cartography
+            filename_list_base = [item.replace(self.hparams.data_folder+'/', "") for item in batch.wav]
+            filename_list = filename_list_base * 2 if hasattr(self.hparams, "wav_augment") else filename_list_base
+            confidence_list = [
+                round((
+                    torch.exp(torch.max(prediction[0])) 
+                    / torch.sum(torch.exp(prediction[0])))
+                    .tolist(), 5)
+                for prediction in predictions
+            ]
+            prediction_list_id = [torch.argmax(prediction[0]).unsqueeze(0) for prediction in predictions]
+            reference_list_id = [target for target in targets]
+            augment_flag = hasattr(self.hparams, "wav_augment")
+
+            # train set prediction and reference
+            # logger.info("Filename: %s", filename_list)
+            # logger.info("Confidence: %s", confidence_list)
+            # logger.info("Prediction: %s", prediction_list_id)
+            # logger.info("Reference: %s", reference_list_id)
+            # logger.info("Augmented: %s", augment_flag)
+
+            cartography_dict = {
+                'filename': filename_list,
+                'confidence': confidence_list,
+                'prediction_id': prediction_list_id,
+                'reference_id': reference_list_id,
+                'augment_flag': augment_flag,
+                'batch_len': len(filename_list),
+            }
 
         if stage != sb.Stage.TRAIN:
             self.error_metrics.append(batch.id, predictions, targets, lens)
 
-        return loss
-    
+        loss = self.hparams.compute_cost(predictions, targets)
+
+        if stage != sb.Stage.TRAIN:
+            return loss  
+        else:
+            return loss, cartography_dict
+
     def on_stage_start(self, stage, epoch=None):
         """Gets called at the beginning of each epoch.
 
@@ -232,7 +268,7 @@ def dataio_prep(hparams):
             json_path=data_info[dataset],
             replacements={"data_root": hparams["data_folder"]},
             dynamic_items=[audio_pipeline, label_pipeline],
-            output_keys=["id", "sig", "language_encoded"],
+            output_keys=["id", "wav", "sig", "language", "language_encoded"],
         )
 
     # Load or compute the label encoder (with multi-GPU DDP support)
@@ -292,6 +328,8 @@ if __name__ == "__main__":
     # with changing state are managed by the Checkpointer, training can be
     # stopped at any point, and will be resumed on next call.
     lid_brain.fit(
+        label_encoder=label_encoder,
+        cartography_folder=hparams['cartography_output_folder'],
         epoch_counter=lid_brain.hparams.epoch_counter,
         train_set=datasets["train"],
         valid_set=datasets["dev"],

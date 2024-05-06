@@ -8,13 +8,15 @@
 # #################################
 
 # Seed needs to be set at top of yaml, before objects with parameters are made
-seed: 778
+seed: 1777
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 
 data_folder: /datasets/mms/transcribed_lid
 output_folder: !ref /models/lang-id-ecapa-mms-finetuned/<seed>
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
+
+cartography_output_folder: !ref <output_folder>/cartography
 
 # Path where data manifest files will be stored
 # The data manifest files are created by the data preparation script.
@@ -29,7 +31,7 @@ RIR_DATASET_URL: https://www.dropbox.com/scl/fi/linhy77c36mu10965a836/RIRs.zip?r
 # The noisy sequences for data augmentation will automatically be downloaded here.
 data_folder_noise: /datasets/augmentation/noise
 # The impulse responses used for data augmentation will automatically be downloaded here.
-data_folder_rir: /datasets/augmentation/rir  
+data_folder_rir: /datasets/augmentation/rir
 
 noise_annotation: !ref <data_folder_noise>/noise.csv
 rir_annotation: !ref <data_folder_rir>/rir.csv
@@ -47,7 +49,7 @@ error_stats: !name:speechbrain.utils.metric_stats.MetricStats
 # Feature parameters btw: 40 - 80
 n_mels: 60 # 80
 sample_rate: 16000
-number_of_epochs: 30
+number_of_epochs: 50
 batch_size: 4
 n_languages: 3
 emb_dim: 256 # 192 # dimensionality of the embeddings
@@ -169,15 +171,15 @@ compute_cost: !new:speechbrain.nnet.losses.LogSoftmaxWrapper
         scale: 30
 
 # Learning rates
-lr: 0.00005 # 0.0001
-lr_final: 0.000005 # 0.00001
+lr: 0.001 # 0.00005 # 0.0001
+lr_final: 0.0001 # 0.000005 # 0.00001
 
 
 # This optimizer will be constructed by the Brain class after all parameters
 # are moved to the correct device. Then it will be added to the checkpointer.
 opt_class: !name:torch.optim.Adam
     lr: !ref <lr>
-    weight_decay: 0.000001 # 0.000002
+    weight_decay: 0.000002 # 0.000002
 
 
 # Linear lr decay
