@@ -1,0 +1,45 @@
+task_config:
+  docker_image: 
+  output_url: 
+  project_name: 
+dataset_config:
+  output_url: 
+  dataset_project: 
+
+convert_nemo_to_sb:
+  queue: 
+  task_name: 
+  split:
+    train:
+      input_dataset_task_id:
+      input_manifest_path: 
+      output_manifest_path:
+      output_dataset_name:
+    dev:
+      input_dataset_task_id:
+      input_manifest_path: 
+      output_manifest_path:
+      output_dataset_name:
+    test:
+      input_dataset_task_id:
+      input_manifest_path: 
+      output_manifest_path:
+      output_dataset_name:
+
+finetuning:
+  queue: 
+  task_name: 
+  model:
+    model_task_id: 
+  data:
+    train:
+      dataset_task_id: 
+    dev:
+      dataset_task_id: 
+    test:
+      dataset_task_id: 
+  augmentation:
+    noise:
+      dataset_task_id: 
+    rir:
+      dataset_task_id: 

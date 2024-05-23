@@ -52,7 +52,6 @@ class ConvertToSBJson:
         with open(os.path.join(self.root_dir, self.output_manifest_dir), 'w', encoding='utf-8') as fw:
             json.dump(final_output_dict, fw, indent=2)
 
-    
     def __call__(self) -> None:
 
         return self.convert()

@@ -11,28 +11,37 @@
 seed: 2024052301
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 
-data_folder: /datasets/mms/transcribed_lid
-output_folder: !ref /models/lang-id-ecapa-mms-finetuned/<seed>
+train_data_folder: 
+dev_data_folder: 
+test_data_folder: 
+
+output_folder: !ref root/models/<seed> # /models/lang-id-ecapa-mms-finetuned/<seed>
 save_folder: !ref <output_folder>/save
 train_log: !ref <output_folder>/train_log.txt
 
 # Path where data manifest files will be stored
 # The data manifest files are created by the data preparation script.
-train_annotation: !ref <data_folder>/train_manifest_sb.json
-valid_annotation: !ref <data_folder>/dev_manifest_sb.json
-test_annotation: !ref <data_folder>/test_manifest_sb.json
+train_annotation: !ref <train_data_folder>/train_manifest_sb.json
+valid_annotation: !ref <dev_data_folder>/dev_manifest_sb.json
+test_annotation: !ref <test_data_folder>/test_manifest_sb.json
 
 # Data for augmentation (if the folder set to the generic ones where the data and csv exists, will not redownload the data again)
 NOISE_DATASET_URL: https://www.dropbox.com/scl/fi/a09pj97s5ifan81dqhi4n/noises.zip?rlkey=j8b0n9kdjdr32o1f06t0cw5b7&dl=1
 RIR_DATASET_URL: https://www.dropbox.com/scl/fi/linhy77c36mu10965a836/RIRs.zip?rlkey=pg9cu8vrpn2u173vhiqyu743u&dl=1
 
 # The noisy sequences for data augmentation will automatically be downloaded here.
-data_folder_noise: /datasets/augmentation/noise
+data_folder_noise: 
 # The impulse responses used for data augmentation will automatically be downloaded here.
-data_folder_rir: /datasets/augmentation/rir  
+data_folder_rir:  
 
 noise_annotation: !ref <data_folder_noise>/noise.csv
 rir_annotation: !ref <data_folder_rir>/rir.csv
+
+# Load pretrained embedding module
+# Note: in this case, we pre-train with the ECAPA-TDNN model trained on voxceleb
+# for speaker-id (this leads to a performance improvement).
+embedding_model_folder: 
+embedding_model_path: !ref <embedding_model_folder>/embedding_model.ckpt
 
 # The train logger writes training statistics to a file, as well as stdout.
 train_logger: !new:speechbrain.utils.train_logger.FileTrainLogger
@@ -198,11 +207,6 @@ checkpointer: !new:speechbrain.utils.checkpoints.Checkpointer
         embedding_model: !ref <embedding_model>
         classifier: !ref <classifier>
         counter: !ref <epoch_counter>
-
-# Load pretrained embedding module
-# Note: in this case, we pre-train with the ECAPA-TDNN model trained on voxceleb
-# for speaker-id (this leads to a performance improvement).
-embedding_model_path: /models/lang-id-voxlingua107-ecapa/embedding_model.ckpt 
 
 # Pretrained ECAPA embeddings from SpeakerID on VoxCeleb
 pretrainer: !new:speechbrain.utils.parameter_transfer.Pretrainer

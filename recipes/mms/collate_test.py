@@ -7,7 +7,7 @@ from tqdm import tqdm
 class CollateTest:
 
     """
-    Collate the train and dev set, make sure the train set is balanced
+    Collate the test set.
     """
 
     def __init__(
