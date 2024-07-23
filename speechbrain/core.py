@@ -1394,6 +1394,7 @@ class Brain:
         final_cartography_dict = {
             'filename': [],
             'confidence': [],
+            'confidence_full': [],
             'prediction_id': [],
             'reference_id': [],
         }
@@ -1401,6 +1402,7 @@ class Brain:
         final_cartography_dict_augmented = {
             'filename': [],
             'confidence': [],
+            'confidence_full': [],
             'prediction_id': [],
             'reference_id': [],
         }
@@ -1434,24 +1436,30 @@ class Brain:
                 if cartography_dict['augment_flag']:
                     filename_list, filename_list_aug = cartography_dict['filename'][:batch_len//2] , cartography_dict['filename'][batch_len//2:]
                     confidence_list, confidence_list_aug = cartography_dict['confidence'][:batch_len//2] , cartography_dict['confidence'][batch_len//2:]
+                    confidence_full_list, confidence_full_list_aug = cartography_dict['confidence_full'][:batch_len//2] , cartography_dict['confidence_full'][batch_len//2:]
                     prediction_id_list, prediction_id_list_aug = cartography_dict['prediction_id'][:batch_len//2] , cartography_dict['prediction_id'][batch_len//2:]
                     reference_id_list, reference_id_list_aug = cartography_dict['reference_id'][:batch_len//2] , cartography_dict['reference_id'][batch_len//2:]
 
                     final_cartography_dict_augmented['filename'].extend(filename_list_aug)
                     final_cartography_dict_augmented['confidence'].extend(confidence_list_aug)
+                    final_cartography_dict_augmented['confidence_full'].extend(confidence_full_list_aug)
                     final_cartography_dict_augmented['prediction_id'].extend(prediction_id_list_aug)
                     final_cartography_dict_augmented['reference_id'].extend(reference_id_list_aug)
 
                 else:
                     filename_list = cartography_dict['filename']
                     confidence_list = cartography_dict['confidence']
+                    confidence_full_list = cartography_dict['confidence_full']
                     prediction_id_list = cartography_dict['prediction_id']
                     reference_id_list = cartography_dict['reference_id']
 
                 final_cartography_dict['filename'].extend(filename_list)
                 final_cartography_dict['confidence'].extend(confidence_list)
+                final_cartography_dict['confidence_full'].extend(confidence_full_list)
                 final_cartography_dict['prediction_id'].extend(prediction_id_list)
                 final_cartography_dict['reference_id'].extend(reference_id_list)
+
+                # for cartography ends
 
                 if self.profiler is not None:
                     self.profiler.step()
@@ -1477,17 +1485,20 @@ class Brain:
         # aug list is not empty
         if final_cartography_dict_augmented['filename']:
             items_aug = []
-            for file, ref, pred, conf in zip(
+            for file, ref, pred, conf, conf_full in zip(
                 final_cartography_dict_augmented['filename'],
                 final_cartography_dict_augmented['reference_id'],
-                final_cartography_dict_augmented['prediction_id'],final_cartography_dict_augmented['confidence']
+                final_cartography_dict_augmented['prediction_id'],
+                final_cartography_dict_augmented['confidence'],
+                final_cartography_dict_augmented['confidence_full'],
             ):
                 
                 temp = {
                     'audio_filepath': file,
                     'language': label_encoder.decode_torch(ref)[0],
                     'pred_language': label_encoder.decode_torch(pred)[0],
-                    'confidence': conf
+                    'confidence': conf,
+                    'confidence_full': conf_full
                 }
 
                 items_aug.append(temp)
@@ -1496,11 +1507,12 @@ class Brain:
 
         items = []
 
-        for file, ref, pred, conf in zip(
+        for file, ref, pred, conf, conf_full in zip(
             final_cartography_dict['filename'],
             final_cartography_dict['reference_id'],
             final_cartography_dict['prediction_id'],
-            final_cartography_dict['confidence']
+            final_cartography_dict['confidence'],
+            final_cartography_dict['confidence_full'],
         ):
             
             temp = {
@@ -1508,6 +1520,7 @@ class Brain:
                 'language': label_encoder.decode_torch(ref)[0],
                 'pred_language': label_encoder.decode_torch(pred)[0],
                 'confidence': conf,
+                'confidence_full': conf_full
             }
 
             items.append(temp)
