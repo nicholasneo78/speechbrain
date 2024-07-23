@@ -8,7 +8,7 @@
 # #################################
 
 # Seed needs to be set at top of yaml, before objects with parameters are made
-seed: 1777
+seed: 1778
 __set_seed: !apply:torch.manual_seed [!ref <seed>]
 
 data_folder: /datasets/mms/transcribed_lid
@@ -49,7 +49,7 @@ error_stats: !name:speechbrain.utils.metric_stats.MetricStats
 # Feature parameters btw: 40 - 80
 n_mels: 60 # 80
 sample_rate: 16000
-number_of_epochs: 50
+number_of_epochs: 100
 batch_size: 4
 n_languages: 3
 emb_dim: 256 # 192 # dimensionality of the embeddings
@@ -171,8 +171,8 @@ compute_cost: !new:speechbrain.nnet.losses.LogSoftmaxWrapper
         scale: 30
 
 # Learning rates
-lr: 0.001 # 0.00005 # 0.0001
-lr_final: 0.0001 # 0.000005 # 0.00001
+lr: 0.0001 # 0.00005 # 0.0001
+lr_final: 0.00001 # 0.000005 # 0.00001
 
 
 # This optimizer will be constructed by the Brain class after all parameters
