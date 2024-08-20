@@ -5,11 +5,10 @@ services:
     build:
       context: ../
       dockerfile: build/dockerfile
+    container_name: speechbrain
     stdin_open: true
     tty: true
-    image: speechbrain:v0.0.1
-    # ports:
-    #   - 8888:8888
+    image: speechbrain:v0.0.2
     deploy:
       resources:
         reservations:
@@ -25,3 +24,13 @@ services:
       memlock: -1
       stack: 67108864
     shm_size: 32gb
+  
+  tensorboard:
+    stdin_open: true
+    tty: true
+    image: speechbrain:v0.0.2
+    ports:
+      - 6006:6006
+    volumes:
+      - /mnt/d/code/speechbrain/recipes/mms/lang_id/logdir:/logs
+    command: tensorboard --logdir /logs --host 0.0.0.0 --port 6006
