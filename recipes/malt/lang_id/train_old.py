@@ -114,10 +114,6 @@ class LID(sb.Brain):
             # additional retrieval of information for data cartography
             filename_list_base = [item.replace(self.hparams.data_folder+'/', "") for item in batch.wav]
             filename_list = filename_list_base * 2 if hasattr(self.hparams, "wav_augment") else filename_list_base
-
-            # print(f"Predictions: {predictions[0][0]}")
-            # print(f"Predictions: {predictions}")
-
             confidence_list = [
                 round((
                     torch.exp(torch.max(prediction[0])) 
@@ -125,20 +121,7 @@ class LID(sb.Brain):
                     .tolist(), 5)
                 for prediction in predictions
             ]
-
-            # for capturing all the confidence score
-            confidence_dict_list = [
-                [round((
-                    torch.exp(prediction[0][idx])
-                    / torch.sum(torch.exp(prediction[0])))
-                    .tolist(), 5) 
-                    for idx in range(len(prediction[0]))
-                ]
-                for prediction in predictions
-            ]
-
-            # print(confidence_list)
-            # print(confidence_dict_list)
+            # print(f"Predictions: {predictions}")
 
             prediction_list_id = [torch.argmax(prediction[0]).unsqueeze(0) for prediction in predictions]
             reference_list_id = [target for target in targets]
@@ -154,14 +137,11 @@ class LID(sb.Brain):
             cartography_dict = {
                 'filename': filename_list,
                 'confidence': confidence_list,
-                'confidence_full': confidence_dict_list,
                 'prediction_id': prediction_list_id,
                 'reference_id': reference_list_id,
                 'augment_flag': augment_flag,
                 'batch_len': len(filename_list),
             }
-
-            # print(cartography_dict)
 
         if stage != sb.Stage.TRAIN:
             self.error_metrics.append(batch.id, predictions, targets, lens)

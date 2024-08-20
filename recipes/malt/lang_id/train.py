@@ -16,14 +16,19 @@ import os
 import sys
 import logging
 import torch
-import torchaudio
 import speechbrain as sb
 from hyperpyyaml import load_hyperpyyaml
+from torch.utils.tensorboard import SummaryWriter
 
 logger = logging.getLogger(__name__)
 
 # Brain class for Language ID training
 class LID(sb.Brain):
+
+    def __init__(self, modules, opt_class, hparams, run_opts, checkpointer):
+        super(LID, self).__init__(modules, opt_class, hparams, run_opts, checkpointer)
+        self.writer = SummaryWriter(log_dir="logdir/")
+
     def prepare_features(self, wavs, stage):
         """Prepare the features for computation, including augmentation.
 
@@ -114,6 +119,10 @@ class LID(sb.Brain):
             # additional retrieval of information for data cartography
             filename_list_base = [item.replace(self.hparams.data_folder+'/', "") for item in batch.wav]
             filename_list = filename_list_base * 2 if hasattr(self.hparams, "wav_augment") else filename_list_base
+
+            # print(f"Predictions: {predictions[0][0]}")
+            # print(f"Predictions: {predictions}")
+
             confidence_list = [
                 round((
                     torch.exp(torch.max(prediction[0])) 
@@ -121,7 +130,20 @@ class LID(sb.Brain):
                     .tolist(), 5)
                 for prediction in predictions
             ]
-            # print(f"Predictions: {predictions}")
+
+            # for capturing all the confidence score
+            confidence_dict_list = [
+                [round((
+                    torch.exp(prediction[0][idx])
+                    / torch.sum(torch.exp(prediction[0])))
+                    .tolist(), 5) 
+                    for idx in range(len(prediction[0]))
+                ]
+                for prediction in predictions
+            ]
+
+            # print(confidence_list)
+            # print(confidence_dict_list)
 
             prediction_list_id = [torch.argmax(prediction[0]).unsqueeze(0) for prediction in predictions]
             reference_list_id = [target for target in targets]
@@ -137,11 +159,14 @@ class LID(sb.Brain):
             cartography_dict = {
                 'filename': filename_list,
                 'confidence': confidence_list,
+                'confidence_full': confidence_dict_list,
                 'prediction_id': prediction_list_id,
                 'reference_id': reference_list_id,
                 'augment_flag': augment_flag,
                 'batch_len': len(filename_list),
             }
+
+            # print(cartography_dict)
 
         if stage != sb.Stage.TRAIN:
             self.error_metrics.append(batch.id, predictions, targets, lens)
@@ -186,6 +211,7 @@ class LID(sb.Brain):
         # Store the train loss until the validation stage.
         if stage == sb.Stage.TRAIN:
             self.train_loss = stage_loss
+            self.writer.add_scalar("Loss/train", stage_loss, epoch)
 
         # Summarize the statistics from the stage for record-keeping.
         else:
@@ -196,6 +222,8 @@ class LID(sb.Brain):
 
         # At the end of validation...
         if stage == sb.Stage.VALID:
+            self.writer.add_scalar("Loss/valid", stage_loss, epoch)
+            self.writer.add_scalar("Error/valid", self.error_metrics.summarize("average"), epoch)
             old_lr, new_lr = self.hparams.lr_annealing(epoch)
             sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
 
