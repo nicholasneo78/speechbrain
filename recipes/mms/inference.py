@@ -105,8 +105,11 @@ class LIDEvaluation:
         ref_list = [item['ref_language'] for item in items]
         pred_list = [item['pred_language'] for item in items]
 
+        duration = sum([item['duration'] for item in items])
+
+        print(f"Total duration: {duration/3600} h")
         print(confusion_matrix(ref_list, pred_list))
-        print(classification_report(ref_list, pred_list, target_names=self.language_list))
+        print(classification_report(ref_list, pred_list, target_names=self.language_list, digits=4))
 
 
     def __call__(self) -> None:
@@ -117,21 +120,27 @@ class LIDEvaluation:
 if __name__ == '__main__':
 
     # ensure that the hyparams and the label encoder file is in the directory stated
-    MODEL = '/models/lang-id-ecapa-mms-finetuned/778/save/CKPT+2024-04-09+11-13-05+00'
-    ROOT = '/datasets/mms/transcribed_lid/'
-    INPUT_MANIFEST_DIR = os.path.join(ROOT, 'test_manifest.json')
-    OUTPUT_MANIFEST_DIR = os.path.join(ROOT, 'pred_test_manifest.json')
+    MODE = 'evaluation'
+    # MODEL = '/models/lang-id-ecapa-mms-finetuned/778/save/CKPT+2024-04-09+11-13-05+00'
+    MODEL = '/models/lang-id-ecapa-mms-finetuned/2024072401/save/CKPT+2024-07-25+01-28-10+00'
+    # ROOT = '/datasets/mms/transcribed_lid/'
+    # raw test set
+    ROOT = '/datasets/mms/transcribed_bibm_final/processed_BM/test_split'
+    # ROOT = '/datasets/mms/transcribed/test_for_D5/EN_test_set'
+
+    INPUT_MANIFEST_DIR = os.path.join(ROOT, 'test_manifest_lid.json')
+    OUTPUT_MANIFEST_DIR = os.path.join(ROOT, 'pred_test_manifest_lid_2024072401.json')
 
     LANGUAGE_LIST = ['en: English', 'id: Indonesian', 'ms: Malay']
-
-    # c = LIDInference(
-    #     root_dir=ROOT,
-    #     model_dir=MODEL,
-    #     input_manifest_dir=INPUT_MANIFEST_DIR,
-    #     output_manifest_dir=OUTPUT_MANIFEST_DIR
-    # )()
-
-    ev = LIDEvaluation(
-        manifest_dir=OUTPUT_MANIFEST_DIR,
-        language_list=LANGUAGE_LIST,
-    )()
+    if MODE == "inference":
+        c = LIDInference(
+            root_dir=ROOT,
+            model_dir=MODEL,
+            input_manifest_dir=INPUT_MANIFEST_DIR,
+            output_manifest_dir=OUTPUT_MANIFEST_DIR
+        )()
+    else:
+        ev = LIDEvaluation(
+            manifest_dir=OUTPUT_MANIFEST_DIR,
+            language_list=LANGUAGE_LIST,
+        )()

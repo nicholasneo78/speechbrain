@@ -13,16 +13,20 @@ Author
 """
 
 import os
-import sys
 import logging
-import torchaudio
 import speechbrain as sb
 from hyperpyyaml import load_hyperpyyaml
+from torch.utils.tensorboard import SummaryWriter
 
 logger = logging.getLogger(__name__)
 
 # Brain class for Language ID training
 class LID(sb.Brain):
+
+    def __init__(self, modules, opt_class, hparams, run_opts, checkpointer):
+        super(LID, self).__init__(modules, opt_class, hparams, run_opts, checkpointer)
+        self.writer = SummaryWriter(log_dir="logdir/")
+
     def prepare_features(self, wavs, stage):
         """Prepare the features for computation, including augmentation.
 
@@ -148,6 +152,7 @@ class LID(sb.Brain):
         # Store the train loss until the validation stage.
         if stage == sb.Stage.TRAIN:
             self.train_loss = stage_loss
+            self.writer.add_scalar('Loss/train', stage_loss, epoch)
 
         # Summarize the statistics from the stage for record-keeping.
         else:
@@ -158,12 +163,16 @@ class LID(sb.Brain):
 
         # At the end of validation...
         if stage == sb.Stage.VALID:
+            self.writer.add_scalar('Loss/valid', stage_loss, epoch)
             old_lr, new_lr = self.hparams.lr_annealing(epoch)
             sb.nnet.schedulers.update_learning_rate(self.optimizer, new_lr)
 
             # The train_logger writes a summary to stdout and to the logfile.
             self.hparams.train_logger.log_stats(
-                {"Epoch": epoch, "lr": old_lr},
+                {
+                    "Epoch": epoch, 
+                    "lr": old_lr
+                },
                 train_stats={"loss": self.train_loss},
                 valid_stats=stats,
             )
@@ -177,6 +186,15 @@ class LID(sb.Brain):
                 {"Epoch loaded": self.hparams.epoch_counter.current},
                 test_stats=stats,
             )
+
+    def on_evaluate_end(self, test_data):
+        """Hook to log metrics at the end of evaluation."""
+        test_loss = self.evaluate(test_data)
+        self.writer.add_scalar('Loss/test', test_loss, 0)
+        # Add any other test metrics you want to log here
+        
+        # Close the writer
+        self.writer.close()
 
 def dataio_prep(hparams):
     """This function prepares the datasets to be used in the brain class.
@@ -251,7 +269,8 @@ def dataio_prep(hparams):
 if __name__ == "__main__":
 
     # Reading command line arguments.
-    hparams_file, run_opts, overrides = sb.parse_arguments(sys.argv[1:])
+    # hparams_file, run_opts, overrides = sb.parse_arguments(sys.argv[1:])
+    hparams_file, run_opts, overrides = sb.parse_arguments(["/speechbrain/recipes/mms/lang_id/hparams/train_ecapa_tdnn.yaml"])
 
     # Initialize ddp (useful only for multi-GPU DDP training).
     sb.utils.distributed.ddp_init_group(run_opts)
@@ -268,6 +287,13 @@ if __name__ == "__main__":
     )
 
     # Data preparation for augmentation
+    print("Noise and RIR")
+    print(hparams["prepare_noise_data"])
+    print(type(hparams["prepare_noise_data"]))
+
+    print(hparams["prepare_rir_data"])
+    print(type(hparams["prepare_rir_data"]))
+
     sb.utils.distributed.run_on_main(hparams["prepare_noise_data"])
     sb.utils.distributed.run_on_main(hparams["prepare_rir_data"])
 

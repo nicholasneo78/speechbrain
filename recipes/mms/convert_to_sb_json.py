@@ -58,32 +58,32 @@ class ConvertToSBJson:
     
 if __name__ == "__main__": 
 
-    # ROOT_DIR = '/datasets/mms/transcribed_lid'
-    # INPUT_MANIFEST_DIR = 'train_manifest.json'
-    # OUTPUT_MANIFEST_DIR = 'train_manifest_sb.json'
-
-    # c = ConvertToSBJson(
-    #     root_dir=ROOT_DIR,
-    #     input_manifest_dir=INPUT_MANIFEST_DIR,
-    #     output_manifest_dir=OUTPUT_MANIFEST_DIR
-    # )()
-
-    # ROOT_DIR = '/datasets/mms/transcribed_lid'
-    # INPUT_MANIFEST_DIR = 'dev_manifest.json'
-    # OUTPUT_MANIFEST_DIR = 'dev_manifest_sb.json'
-
-    # c = ConvertToSBJson(
-    #     root_dir=ROOT_DIR,
-    #     input_manifest_dir=INPUT_MANIFEST_DIR,
-    #     output_manifest_dir=OUTPUT_MANIFEST_DIR
-    # )()
-
     ROOT_DIR = '/datasets/mms/transcribed_lid'
-    INPUT_MANIFEST_DIR = 'test_manifest.json'
-    OUTPUT_MANIFEST_DIR = 'test_manifest_sb.json'
+    INPUT_MANIFEST_DIR = 'train_manifest.json'
+    OUTPUT_MANIFEST_DIR = 'train_manifest_sb.json'
 
     c = ConvertToSBJson(
         root_dir=ROOT_DIR,
         input_manifest_dir=INPUT_MANIFEST_DIR,
         output_manifest_dir=OUTPUT_MANIFEST_DIR
     )()
+
+    ROOT_DIR = '/datasets/mms/transcribed_lid'
+    INPUT_MANIFEST_DIR = 'dev_manifest.json'
+    OUTPUT_MANIFEST_DIR = 'dev_manifest_sb.json'
+
+    c = ConvertToSBJson(
+        root_dir=ROOT_DIR,
+        input_manifest_dir=INPUT_MANIFEST_DIR,
+        output_manifest_dir=OUTPUT_MANIFEST_DIR
+    )()
+
+    # ROOT_DIR = '/datasets/mms/transcribed_lid'
+    # INPUT_MANIFEST_DIR = 'test_manifest.json'
+    # OUTPUT_MANIFEST_DIR = 'test_manifest_sb.json'
+
+    # c = ConvertToSBJson(
+    #     root_dir=ROOT_DIR,
+    #     input_manifest_dir=INPUT_MANIFEST_DIR,
+    #     output_manifest_dir=OUTPUT_MANIFEST_DIR
+    # )()

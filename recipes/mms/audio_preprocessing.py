@@ -171,24 +171,25 @@ class FilterBestAudio:
 
 if __name__ == "__main__":
 
-    SPLIT = 'test'
-    LANGUAGE = 'ms'
-    LANGUAGE_ = 'BM'
-    INPUT_ROOT_DIR = f'/datasets/mms/transcribed_bibm_final/processed_{LANGUAGE_}/{SPLIT}_split'
-    INPUT_MANIFEST_DIR = f'{SPLIT}_manifest.json' # f'test_manifest.json' # f'{SPLIT}_manifest.json'
+    # SPLIT = 'dev'
+    # LANGUAGE = 'id'
+    # LANGUAGE_ = 'BI'
+    # INPUT_ROOT_DIR = f'/datasets/mms/transcribed_bibm_final/processed_{LANGUAGE_}/{SPLIT}_split'
+    # INPUT_MANIFEST_DIR = f'{SPLIT}_manifest.json' # f'test_manifest.json' # f'{SPLIT}_manifest.json'
+    # MIN_AUDIO_DURATION = 1
+    # LONG_AUDIO_MULTIPLIER = 10
+    # OUTPUT_ROOT_DIR = '/datasets/mms/transcribed_lid'
+    # OUTPUT_MANIFEST_DIR = f'{SPLIT}_manifest_{LANGUAGE}.json'
+    
+    SPLIT = 'train'
+    LANGUAGE = 'en'
+    # INPUT_ROOT_DIR = f'/datasets/mms/transcribed/mms_transcribed_batch_1/{SPLIT}_split'
+    INPUT_ROOT_DIR = f'/datasets/mms/transcribed/mms_set_3_full/mms_set_3/{SPLIT}_split'
+    INPUT_MANIFEST_DIR = f'{SPLIT}_manifest.json'
     MIN_AUDIO_DURATION = 3
     LONG_AUDIO_MULTIPLIER = 10
     OUTPUT_ROOT_DIR = '/datasets/mms/transcribed_lid'
     OUTPUT_MANIFEST_DIR = f'{SPLIT}_manifest_{LANGUAGE}.json'
-    
-    # SPLIT = 'test'
-    # LANGUAGE = 'en'
-    # INPUT_ROOT_DIR = f'/datasets/mms/transcribed/mms_transcribed_batch_2/{SPLIT}_split'
-    # INPUT_MANIFEST_DIR = f'{SPLIT}_manifest.json'
-    # MIN_AUDIO_DURATION = 3
-    # LONG_AUDIO_MULTIPLIER = 10
-    # OUTPUT_ROOT_DIR = '/datasets/mms/transcribed_lid'
-    # OUTPUT_MANIFEST_DIR = f'{SPLIT}_manifest_{LANGUAGE}.json'
 
     f = FilterBestAudio(
         input_root_dir=INPUT_ROOT_DIR,
