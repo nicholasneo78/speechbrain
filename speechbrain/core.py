@@ -1196,6 +1196,56 @@ class Brain:
                     dtype=amp.dtype, device_type=torch.device(self.device).type
                 ):
                     outputs = self.compute_forward(batch, sb.Stage.TRAIN)
+                    loss = self.compute_objectives(
+                        outputs, batch, sb.Stage.TRAIN
+                    )
+            else:
+                outputs = self.compute_forward(batch, sb.Stage.TRAIN)
+                loss = self.compute_objectives(outputs, batch, sb.Stage.TRAIN)
+
+            scaled_loss = self.scaler.scale(
+                loss / self.grad_accumulation_factor
+            )
+            self.check_loss_isfinite(scaled_loss)
+            scaled_loss.backward()
+
+        if should_step:
+            self.optimizers_step()
+
+        self.on_fit_batch_end(batch, outputs, loss, should_step)
+        return loss.detach().cpu()
+
+    def fit_batch_cartography(self, batch):
+        """Fit one batch, override to do multiple updates.
+
+        The default implementation depends on a few methods being defined
+        with a particular behavior:
+
+        * ``compute_forward()``
+        * ``compute_objectives()``
+        * ``optimizers_step()``
+
+        Also depends on having optimizers passed at initialization.
+
+        Arguments
+        ---------
+        batch : list of torch.Tensors
+            Batch of data to use for training. Default implementation assumes
+            this batch has two elements: inputs and targets.
+
+        Returns
+        -------
+        detached loss
+        """
+        amp = AMPConfig.from_name(self.precision)
+        should_step = (self.step % self.grad_accumulation_factor) == 0
+
+        with self.no_sync(not should_step):
+            if self.use_amp:
+                with torch.autocast(
+                    dtype=amp.dtype, device_type=torch.device(self.device).type
+                ):
+                    outputs = self.compute_forward(batch, sb.Stage.TRAIN)
                     loss, cartography_dict = self.compute_objectives(
                         outputs, batch, sb.Stage.TRAIN
                     )
@@ -1214,6 +1264,8 @@ class Brain:
 
         self.on_fit_batch_end(batch, outputs, loss, should_step)
         return loss.detach().cpu(), cartography_dict
+
+    
 
     def check_loss_isfinite(self, loss):
         """Check if the loss is finite.
@@ -1374,7 +1426,72 @@ class Brain:
             loss = self.compute_objectives(out, batch, stage=stage)
         return loss.detach().cpu()
 
-    def _fit_train(self, label_encoder, cartography_folder, train_set, epoch, enable):
+    def _fit_train(self, train_set, epoch, enable):
+        # Training stage
+        self.on_stage_start(Stage.TRAIN, epoch)
+        self.modules.train()
+        self.zero_grad()
+
+        # Reset nonfinite count to 0 each epoch
+        self.nonfinite_count = 0
+
+        if self.train_sampler is not None and hasattr(
+            self.train_sampler, "set_epoch"
+        ):
+            self.train_sampler.set_epoch(epoch)
+
+        # Time since last intra-epoch checkpoint
+        last_ckpt_time = time.time()
+        steps_since_ckpt = 0
+        with tqdm(
+            train_set,
+            initial=self.step,
+            dynamic_ncols=True,
+            disable=not enable,
+            colour=self.tqdm_barcolor["train"],
+        ) as t:
+            if self.profiler is not None:
+                self.profiler.start()
+            for batch in t:
+                if self._optimizer_step_limit_exceeded:
+                    logger.info("Train iteration limit exceeded")
+                    break
+                self.step += 1
+                steps_since_ckpt += 1
+                loss = self.fit_batch(batch)
+                self.avg_train_loss = self.update_average(
+                    loss, self.avg_train_loss
+                )
+                t.set_postfix(train_loss=self.avg_train_loss)
+
+                if self.profiler is not None:
+                    self.profiler.step()
+                    if self.profiler.step_num > self.tot_prof_steps:
+                        logger.info(
+                            "The profiler finished, training is stopped."
+                        )
+                        self.profiler.stop()
+                        quit()
+
+                # Debug mode only runs a few batches
+                if self.debug and self.step == self.debug_batches:
+                    break
+
+                if self._should_save_intra_epoch_ckpt(
+                    last_ckpt_time, steps_since_ckpt
+                ):
+                    # Checkpointer class will handle running this on main only
+                    self._save_intra_epoch_ckpt()
+                    last_ckpt_time = time.time()
+                    steps_since_ckpt = 0
+
+        # Run train "on_stage_end" on all processes
+        self.zero_grad(set_to_none=True)  # flush gradients
+        self.on_stage_end(Stage.TRAIN, self.avg_train_loss, epoch)
+        self.avg_train_loss = 0.0
+        self.step = 0
+
+    def _fit_train_cartography(self, label_encoder, cartography_folder, train_set, epoch, enable):
         
         os.makedirs(cartography_folder, exist_ok=True)
         
@@ -1425,7 +1542,7 @@ class Brain:
                     break
                 self.step += 1
                 steps_since_ckpt += 1
-                loss, cartography_dict = self.fit_batch(batch)
+                loss, cartography_dict = self.fit_batch_cartography(batch)
                 self.avg_train_loss = self.update_average(
                     loss, self.avg_train_loss
                 )
@@ -1601,9 +1718,9 @@ class Brain:
     def fit(
         self,
         label_encoder,
-        cartography_folder,
         epoch_counter,
         train_set,
+        cartography_folder=None,
         valid_set=None,
         progressbar=None,
         train_loader_kwargs={},
@@ -1685,24 +1802,46 @@ class Brain:
         # Only show progressbar if requested and main_process
         enable = progressbar and sb.utils.distributed.if_main_process()
 
-        # Iterate epochs
-        for epoch in epoch_counter:
-            self._fit_train(
-                label_encoder=label_encoder,
-                cartography_folder=cartography_folder,
-                train_set=train_set, 
-                epoch=epoch, 
-                enable=enable
-            )
-            self._fit_valid(valid_set=valid_set, epoch=epoch, enable=enable)
+        # perform cartography
+        if cartography_folder is not None:
+            # Iterate epochs
+            for epoch in epoch_counter:
+                self._fit_train_cartography(
+                    label_encoder=label_encoder,
+                    cartography_folder=cartography_folder,
+                    train_set=train_set, 
+                    epoch=epoch, 
+                    enable=enable
+                )
+                self._fit_valid(valid_set=valid_set, epoch=epoch, enable=enable)
 
-            # Debug mode only runs a few epochs
-            if (
-                self.debug
-                and epoch == self.debug_epochs
-                or self._optimizer_step_limit_exceeded
-            ):
-                break
+                # Debug mode only runs a few epochs
+                if (
+                    self.debug
+                    and epoch == self.debug_epochs
+                    or self._optimizer_step_limit_exceeded
+                ):
+                    break
+        
+        # no cartography
+        else:
+            # Iterate epochs
+            for epoch in epoch_counter:
+                self._fit_train(
+                    label_encoder=label_encoder,
+                    train_set=train_set, 
+                    epoch=epoch, 
+                    enable=enable
+                )
+                self._fit_valid(valid_set=valid_set, epoch=epoch, enable=enable)
+
+                # Debug mode only runs a few epochs
+                if (
+                    self.debug
+                    and epoch == self.debug_epochs
+                    or self._optimizer_step_limit_exceeded
+                ):
+                    break
 
     @property
     def _optimizer_step_limit_exceeded(self):
