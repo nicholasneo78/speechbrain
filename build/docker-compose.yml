@@ -7,7 +7,7 @@ services:
       dockerfile: build/dockerfile
     stdin_open: true
     tty: true
-    image: speechbrain:v0.0.1
+    image: speechbrain:v0.0.5-cartography-enabled
     # ports:
     #   - 8888:8888
     deploy:

@@ -1,5 +1,5 @@
-FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
-# FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
+# FROM pytorch/pytorch:2.1.0-cuda11.8-cudnn8-runtime
+FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
 
 ENV TZ=Asia/Singapore
 RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
@@ -20,14 +20,14 @@ ADD requirements.txt .
 RUN pip install --upgrade pip
 
 # install torchaudio with whl file
-# RUN pip install https://download.pytorch.org/whl/cu116/torchaudio-0.13.1%2Bcu116-cp310-cp310-linux_x86_64.whl#sha256=def44b171501dcb994f5a1948d559662705705ee3be6f781bd11efcd3bbfcd30
+RUN pip install https://download.pytorch.org/whl/cu116/torchaudio-0.13.1%2Bcu116-cp310-cp310-linux_x86_64.whl#sha256=def44b171501dcb994f5a1948d559662705705ee3be6f781bd11efcd3bbfcd30
 
-RUN pip install --no-cache-dir https://download.pytorch.org/whl/cu118/torchaudio-2.1.0%2Bcu118-cp310-cp310-linux_x86_64.whl#sha256=cdfd0a129406155eee595f408cafbb92589652da4090d1d2040f5453d4cae71f
+# RUN pip install --no-cache-dir https://download.pytorch.org/whl/cu118/torchaudio-2.1.0%2Bcu118-cp310-cp310-linux_x86_64.whl#sha256=cdfd0a129406155eee595f408cafbb92589652da4090d1d2040f5453d4cae71f
 
 # additional installation for k2
 # RUN pip install https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20240223+cuda12.1.torch2.1.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-RUN pip install --no-cache-dir https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20240223+cuda11.8.torch2.1.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
-# RUN pip install https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20240223+cuda11.6.torch1.13.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+# RUN pip install --no-cache-dir https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20240223+cuda11.8.torch2.1.0-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+RUN pip install https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20240223+cuda11.6.torch1.13.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 
 RUN pip install scikit-learn==1.4.2
 COPY . .
