@@ -1,0 +1,36 @@
+# general
+tqdm==4.66.5
+librosa==0.10.2
+numpy==1.26.4
+hydra-core==1.3.2
+omegaconf==2.3.0
+clearml==1.16.1
+boto3==1.34.117
+
+# audio-augmentation
+audiomentations==0.37.0
+soundfile==0.12.1
+# pyannote.audio==3.3.2
+
+# speechbrain
+scikit-learn==1.4.2
+tensorboard==2.17.0
+tensorboardX==2.6.1
+pydub==0.25.1
+
+# whisper
+more-itertools==10.5.0
+ffmpeg-python==0.2.0
+tiktoken==0.5.2
+numba==0.58.1
+
+# lid_cartography
+panel==1.4.5
+pandas==2.2.3
+altair[all]==5.4.0
+matplotlib==3.9.2
+seaborn==0.13.2
+pyarrow==17.0.0
+
+# webdataset dependencies
+webdataset==0.2.100

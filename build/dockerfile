@@ -1,0 +1,54 @@
+# FROM pytorch/pytorch:1.13.1-cuda11.6-cudnn8-runtime
+FROM pytorch/pytorch:2.1.1-cuda12.1-cudnn8-runtime
+
+ENV TZ=Asia/Singapore
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+RUN apt-get update && \
+    apt-get install -y gcc build-essential libsndfile1 vim git sox wget ffmpeg sudo python3-pip g++ libsox-fmt-mp3 file && \
+    apt-get autoremove && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+RUN rm -rf $(python -c "from distutils.sysconfig import get_python_lib; print(get_python_lib())")/ruamel*
+RUN pip install --upgrade pip
+
+##### FOR SPEECHBRAIN #####
+
+# install torchaudio with whl file
+# torch 1.13.1
+# RUN pip install --no-cache-dir https://download.pytorch.org/whl/cu116/torchaudio-0.13.1%2Bcu116-cp310-cp310-linux_x86_64.whl#sha256=def44b171501dcb994f5a1948d559662705705ee3be6f781bd11efcd3bbfcd30
+# torch 2.1.1
+RUN pip install --no-cache-dir https://download.pytorch.org/whl/cu121/torchaudio-2.1.1%2Bcu121-cp310-cp310-linux_x86_64.whl#sha256=eff8260e02f88a694a964b2bb6f637a6af3107787d907eae7e5801816033bfa7
+
+# add speechbrain specific packages and build speechbrain from source
+# ADD speechbrain/requirements.txt .
+COPY . .
+RUN python3 -m pip install --no-cache-dir -r requirements.txt
+RUN pip install --editable .
+
+# additional installation for k2
+# torch 1.13.1
+# RUN pip install https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20240223+cuda11.6.torch1.13.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+# torch 2.1.1
+RUN pip install https://huggingface.co/csukuangfj/k2/resolve/main/ubuntu-cuda/k2-1.24.4.dev20240223+cuda12.1.torch2.1.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
+
+##### FOR SPEECHBRAIN ENDS #####
+
+COPY build/requirements.txt build/
+RUN python3 -m pip install --no-cache-dir -r build/requirements.txt && pip cache purge
+
+##### BUILD PYANNOTE FROM SOURCE -> TO CONTROL THE VERSION OF THE PYTORCH AND TORCHAUDIO USED, some modification of the setup.py was made to disable the upgrade #####
+# COPY pyannote-audio/ .
+# RUN pip install -e .
+##### BUILD ENDS #####
+
+##### FOR WHISPER #####
+RUN mkdir /root/.cache/whisper
+##### FOR WHISPER ENDS #####
+
+WORKDIR /speechbrain
+RUN ["bash"]
