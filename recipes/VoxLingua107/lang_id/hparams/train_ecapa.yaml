@@ -4,7 +4,7 @@
 # ################################
 
 # Basic parameters
-seed: 1988
+seed: 1989
 __set_seed: !apply:speechbrain.utils.seed_everything [!ref <seed>]
 output_folder: !ref /models/lang-id-malt-finetuned/10h_non_ema_lr_<lr>_test_shard/<seed>
 save_folder: !ref <output_folder>/save
@@ -39,7 +39,7 @@ sample_rate: 16000
 sentence_len: 3 # seconds
 
 # Feature parameters
-n_mels: 60
+n_mels: 80
 left_frames: 0
 right_frames: 0
 deltas: False
@@ -105,7 +105,7 @@ wav_augment: !new:speechbrain.augment.augmenter.Augmenter
         !ref <add_noise>,
         !ref <speed_perturb>]
 
-    # Functions
+# Functions
 compute_features: !new:speechbrain.lobes.features.Fbank
     n_mels: !ref <n_mels>
     left_frames: !ref <left_frames>
